@@ -60,11 +60,36 @@ public class ManageStaffChatCommand implements CommandExecutor, TabCompleter {
 	public ManageStaffChatCommand(StaffChatPlugin plugin) {
 		this.plugin = plugin;
 	}
-	
+
 	@Override
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 		@NullOr String option = (args.length >= 1) ? args[0].toLowerCase(Locale.ROOT) : null;
-		
+
+		// 1. Handle your new "toggle" command first
+		if (args.length >= 1 && args[0].equalsIgnoreCase("toggle")) {
+			if (!(sender instanceof Player)) {
+				sender.sendMessage("Only players can use this command.");
+				return true;
+			}
+			Player player = (Player) sender;
+			if (args.length >= 2) {
+				String state = args[1].toLowerCase(Locale.ROOT);
+				if (state.equals("yes") || state.equals("on")) {
+					plugin.data().getOrCreateProfile(player).receivesStaffChatMessages(true);
+					player.sendMessage(colorful("&9StaffChat &fenabled."));
+				} else if (state.equals("no") || state.equals("off")) {
+					plugin.data().getOrCreateProfile(player).receivesStaffChatMessages(false);
+					player.sendMessage(colorful("&9StaffChat &fdisabled."));
+				} else {
+					player.sendMessage(colorful("&cUsage: /staffchat toggle <yes|no>"));
+				}
+			} else {
+				player.sendMessage(colorful("&cUsage: /staffchat toggle <yes|no>"));
+			}
+			return true;
+		}
+
+		// 2. Handle your existing logic
 		if (option == null || HELP_ALIASES.contains(option)) {
 			usage(sender, label);
 		} else if (RELOAD_ALIASES.contains(option)) {
@@ -76,29 +101,27 @@ public class ManageStaffChatCommand implements CommandExecutor, TabCompleter {
 				"&9&lDiscordSRV-Staff-Chat&f: &7&oUnknown arguments: " + String.join(" ", args)
 			));
 		}
-		
+
 		return true;
 	}
-	
+
 	@Override
 	public @NullOr List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-		@NullOr List<String> suggestions = null;
-		
-		if (args.length <= 0) {
-			suggestions = new ArrayList<>(ALL_OPTION_ALIASES);
-		} else if (args.length == 1) {
-			String last = args[0].toLowerCase(Locale.ROOT);
-			
-			suggestions =
-				ALL_OPTION_ALIASES.stream()
-					.filter(option -> option.contains(last))
-					.collect(Collectors.toCollection(ArrayList::new));
+		// 1. Handle the "toggle" subcommand
+		if (args.length == 1) {
+			return List.of("toggle").stream()
+				.filter(option -> option.startsWith(args[0].toLowerCase(Locale.ROOT)))
+				.collect(Collectors.toList());
 		}
-		
-		if (suggestions != null) {
-			suggestions.sort(String.CASE_INSENSITIVE_ORDER);
+
+		// 2. Handle the "yes/no" selection after "toggle"
+		else if (args.length == 2 && args[0].equalsIgnoreCase("toggle")) {
+			return List.of("yes", "no").stream()
+				.filter(option -> option.startsWith(args[1].toLowerCase(Locale.ROOT)))
+				.collect(Collectors.toList());
 		}
-		return suggestions;
+
+		return null; // Or return original list if you have other completions
 	}
 	
 	private void usage(CommandSender sender, String label) {
