@@ -26,25 +26,73 @@ import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
+import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.entity.Player;
+import java.util.Locale;
+import static com.rezzedup.discordsrv.staffchat.util.Strings.colorful;
 
-public class ToggleStaffChatCommand implements CommandExecutor {
+public class StaffChatCommand implements CommandExecutor {
 	private final StaffChatPlugin plugin;
-	
-	public ToggleStaffChatCommand(StaffChatPlugin plugin) {
+
+	public StaffChatCommand(StaffChatPlugin plugin) {
 		this.plugin = plugin;
 	}
-	
+
 	@Override
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-		if (sender instanceof Player) {
-			// Either join or leave so...
-			plugin.data().getOrCreateProfile((Player) sender)
-				.receivesStaffChatMessages(command.getName().contains("join"));
-		} else {
-			sender.sendMessage("Only players may run this command.");
+		// 1. NEW TOGGLE LOGIC
+		if (args.length >= 1 && args[0].equalsIgnoreCase("toggle")) {
+			if (!(sender instanceof Player)) {
+				sender.sendMessage("Only players can use this command.");
+				return true;
+			}
+
+			Player player = (Player) sender;
+			// Get the profile
+			var profile = plugin.data().getOrCreateProfile(player);
+
+			if (args.length >= 2) {
+				String state = args[1].toLowerCase(Locale.ROOT);
+
+				if (state.equals("yes") || state.equals("on")) {
+					profile.automaticStaffChat(true); // Explicitly ENABLE
+					player.sendMessage(colorful("&9StaffChat &fenabled."));
+				} else if (state.equals("no") || state.equals("off")) {
+					profile.automaticStaffChat(false); // Explicitly DISABLE
+					player.sendMessage(colorful("&9StaffChat &fdisabled."));
+				} else {
+					player.sendMessage(colorful("&cUsage: /staffchat toggle <yes|no>"));
+				}
+			} else {
+				player.sendMessage(colorful("&cUsage: /staffchat toggle <yes|no>"));
+			}
+			return true; // Stop here
 		}
-		
+
+		// 2. EXISTING LOGIC
+		if (args.length <= 0) {
+			if (!(sender instanceof Player)) {
+				return false;
+			}
+			plugin.data().getOrCreateProfile((Player) sender).toggleAutomaticStaffChat();
+		} else {
+			String message = String.join(" ", args);
+
+			if (sender instanceof Player) {
+				plugin.submitMessageFromPlayer((Player) sender, message);
+			} else if (sender instanceof ConsoleCommandSender) {
+				plugin.submitMessageFromConsole(message);
+			} else {
+				sender.sendMessage("Unsupported command sender type: " + sender.getClass().getSimpleName());
+			}
+		}
+
 		return true;
 	}
 }
